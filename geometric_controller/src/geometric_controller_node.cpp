@@ -32,6 +32,7 @@ geometricCtrl::geometricCtrl(const ros::NodeHandle& nh, const ros::NodeHandle& n
   nh_.param<int>("/geometric_controller/ctrl_mode", ctrl_mode_, MODE_BODYRATE);
   nh_.param<bool>("/geometric_controller/enable_sim", sim_enable_, true);
   nh_.param<bool>("/geometric_controller/enable_gazebo_state", use_gzstates_, false);
+  nh_.param<bool>("/geometric_controller/yaw_velocity", velocity_yaw_, false);
   nh_.param<double>("/geometric_controller/max_acc", max_fb_acc_, 7.0);
   nh_.param<double>("/geometric_controller/yaw_heading", mavYaw_, 0.0);
   nh_.param<double>("/geometric_controller/drag_dx", dx_, 0.0);
@@ -230,10 +231,17 @@ void geometricCtrl::pubRateCommands(){
 void geometricCtrl::computeBodyRateCmd(bool ctrl_mode){
   Eigen::Vector3d errorPos_, errorVel_;
   Eigen::Matrix3d R_ref;
+  Eigen::Vector3d groundvel;
 
   errorPos_ = mavPos_ - targetPos_;
   errorVel_ = mavVel_ - targetVel_;
   a_ref = targetAcc_;
+
+  if(velocity_yaw_){
+    groundvel << mavVel_(0), mavVel_(1), 0.0;
+
+    mavYaw_ = -1.0* std::atan2(mavVel_(1), mavVel_(0));
+  }
 
   /// Compute BodyRate commands using differential flatness
   /// Controller based on Faessler 2017

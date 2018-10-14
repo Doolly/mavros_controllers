@@ -74,6 +74,7 @@ class geometricCtrl
     Eigen::Vector3d targetPos_, targetVel_, targetAcc_, targetJerk_, targetSnap_, targetPos_prev_, targetVel_prev_;
     Eigen::Vector3d mavPos_, mavVel_, mavRate_;
     double mavYaw_;
+    bool velocity_yaw_;
     Eigen::Vector3d a_des, a_fb, a_ref, a_rd, g_;
     Eigen::Vector4d mavAtt_, q_ref, q_des;
     Eigen::Vector4d cmdBodyRate_; //{wx, wy, wz, Thrust}
