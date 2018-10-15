@@ -236,22 +236,19 @@ void geometricCtrl::computeBodyRateCmd(bool ctrl_mode){
   errorPos_ = mavPos_ - targetPos_;
   errorVel_ = mavVel_ - targetVel_;
   a_ref = targetAcc_;
-
-  if(velocity_yaw_){
-    groundvel << mavVel_(0), mavVel_(1), 0.0;
-
-    mavYaw_ = -1.0* std::atan2(mavVel_(1), mavVel_(0));
-  }
+  groundvel << targetVel_(0), targetVel_(1), 0.0;
 
   /// Compute BodyRate commands using differential flatness
   /// Controller based on Faessler 2017
-  q_ref = acc2quaternion(a_ref - g_, mavYaw_);
+  if(!velocity_yaw_) q_ref = acc2quaternion(a_ref - g_, mavYaw_);
+  else q_ref = acc2quaternion(a_ref - g_, groundvel);
   R_ref = quat2RotMatrix(q_ref);
   a_fb = Kpos_.asDiagonal() * errorPos_ + Kvel_.asDiagonal() * errorVel_; //feedforward term for trajectory error
   if(a_fb.norm() > max_fb_acc_) a_fb = (max_fb_acc_ / a_fb.norm()) * a_fb;
   a_rd = R_ref * D_.asDiagonal() * R_ref.transpose() * targetVel_; //Rotor drag
   a_des = a_fb + a_ref - a_rd - g_;
-  q_des = acc2quaternion(a_des, mavYaw_);
+  if(!velocity_yaw_) q_des = acc2quaternion(a_des, mavYaw_);
+  else q_des = acc2quaternion(a_des, groundvel);
 
   cmdBodyRate_ = attcontroller(q_des, a_des, mavAtt_); //Calculate BodyRate
 }
@@ -322,6 +319,22 @@ Eigen::Vector4d geometricCtrl::acc2quaternion(Eigen::Vector3d vector_acc, double
   rotmat << xb_des(0), yb_des(0), zb_des(0),
             xb_des(1), yb_des(1), zb_des(1),
             xb_des(2), yb_des(2), zb_des(2);
+  quat = rot2Quaternion(rotmat);
+  yb_des = zb_des.cross(xb_des) / (zb_des.cross(xb_des)).norm();
+  return quat;
+}
+
+Eigen::Vector4d geometricCtrl::acc2quaternion(Eigen::Vector3d vector_acc, Eigen::Vector3d heading_vec) {
+  Eigen::Vector4d quat;
+  Eigen::Vector3d zb_des, yb_des, xb_des, yc;
+  Eigen::Matrix3d rotmat;
+  heading_vec = (1/heading_vec.norm()) * heading_vec;
+  yc = Eigen::Vector3d::UnitZ().cross(heading_vec);
+  zb_des = vector_acc / vector_acc.norm();
+  xb_des = yc.cross(zb_des) / ( yc.cross(zb_des) ).norm();
+  rotmat << xb_des(0), yb_des(0), zb_des(0),
+          xb_des(1), yb_des(1), zb_des(1),
+          xb_des(2), yb_des(2), zb_des(2);
   quat = rot2Quaternion(rotmat);
   yb_des = zb_des.cross(xb_des) / (zb_des.cross(xb_des)).norm();
   return quat;
